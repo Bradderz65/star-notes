@@ -22,6 +22,7 @@ const UIState = {
     activeFilter: 'all',
     searchQuery: '',
     expandedCategories: new Set(),
+    lastScrollY: 0,
 };
 
 const PatchStore = {
@@ -72,6 +73,20 @@ function formatGeneratedAt(isoValue) {
     });
 }
 
+function formatRelativeTime(isoValue) {
+    if (!isoValue) return '--';
+    const parsed = new Date(isoValue);
+    const diffMs = Date.now() - parsed.getTime();
+    if (Number.isNaN(diffMs) || diffMs < 0) return 'just now';
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+}
+
 function updateUI() {
     const versionEl = document.getElementById('current-version');
     const patchVersionEl = document.getElementById('patch-version');
@@ -79,12 +94,14 @@ function updateUI() {
     const buildChannelEl = document.getElementById('build-channel');
     const statusEl = document.getElementById('release-status');
     const updatedEl = document.getElementById('patch-updated');
+    const footerMetaEl = document.getElementById('footer-meta');
 
     if (versionEl) versionEl.textContent = PatchData.version || '--';
     if (patchVersionEl) patchVersionEl.textContent = PatchData.version || '--';
     if (releaseDateEl) releaseDateEl.textContent = PatchData.releaseDate || '--';
     if (buildChannelEl) buildChannelEl.textContent = PatchData.buildChannel || '--';
-    if (updatedEl) updatedEl.textContent = `Last updated: ${formatGeneratedAt(PatchData.generatedAt)}`;
+    if (updatedEl) updatedEl.textContent = `Last updated: ${formatGeneratedAt(PatchData.generatedAt)} (${formatRelativeTime(PatchData.generatedAt)})`;
+    if (footerMetaEl) footerMetaEl.textContent = `Data source: starcitizen.tools • Updated ${formatRelativeTime(PatchData.generatedAt)}`;
 
     if (statusEl) {
         statusEl.textContent = PatchData.status || '--';
@@ -103,6 +120,15 @@ function updateUI() {
     if (shipsEl) shipsEl.textContent = PatchData.stats.ships || '--';
 }
 
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function createPatchItem(text) {
     const row = document.createElement('div');
     row.className = 'patch-item';
@@ -112,7 +138,15 @@ function createPatchItem(text) {
 
     const paragraph = document.createElement('p');
     paragraph.className = 'patch-text';
-    paragraph.textContent = text;
+
+    const safeText = escapeHtml(text);
+    if (UIState.searchQuery) {
+        const escaped = UIState.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${escaped})`, 'ig');
+        paragraph.innerHTML = safeText.replace(regex, '<mark>$1</mark>');
+    } else {
+        paragraph.textContent = text;
+    }
 
     row.appendChild(marker);
     row.appendChild(paragraph);
@@ -207,12 +241,19 @@ function createCategoryCard(category, index, visibleItems) {
 
 function renderCategories() {
     const container = document.getElementById('patch-categories');
+    const searchMeta = document.getElementById('search-meta');
     container.innerHTML = '';
 
     const filteredCategories = PatchData.categories
         .filter((category) => shouldIncludeCategory(category))
         .map((category) => ({ ...category, items: filterCategoryItems(category) }))
         .filter((category) => category.items.length);
+
+    const totalMatches = filteredCategories.reduce((sum, category) => sum + category.items.length, 0);
+    if (searchMeta) {
+        if (UIState.searchQuery) searchMeta.textContent = `${totalMatches} matches`;
+        else searchMeta.textContent = 'All notes';
+    }
 
     if (!filteredCategories.length) {
         container.innerHTML = `
@@ -294,9 +335,13 @@ function setLoadingState() {
     const container = document.getElementById('patch-categories');
     container.innerHTML = `
         <div class="empty-state">
-            <div class="empty-icon"></div>
             <h3>Loading Patch Data</h3>
             <p>Reading local patch dataset...</p>
+            <div class="skeleton-list" aria-hidden="true">
+                <div class="skeleton-row"></div>
+                <div class="skeleton-row"></div>
+                <div class="skeleton-row"></div>
+            </div>
         </div>
     `;
 }
@@ -464,12 +509,21 @@ function renderFilterChips() {
 
 function initToolbarActions() {
     const search = document.getElementById('patch-search');
+    const clearSearch = document.getElementById('clear-search-btn');
     const expandAll = document.getElementById('expand-all-btn');
     const collapseAll = document.getElementById('collapse-all-btn');
 
     if (search) {
         search.addEventListener('input', () => {
             UIState.searchQuery = search.value.trim();
+            renderCategories();
+        });
+    }
+
+    if (clearSearch) {
+        clearSearch.addEventListener('click', () => {
+            UIState.searchQuery = '';
+            if (search) search.value = '';
             renderCategories();
         });
     }
@@ -493,10 +547,18 @@ function initToolbarActions() {
 
 function initBackToTop() {
     const button = document.getElementById('back-to-top');
+    const toolbar = document.getElementById('patch-toolbar');
     if (!button) return;
 
     const updateVisibility = () => {
         button.classList.toggle('visible', window.scrollY > 500);
+
+        if (toolbar) {
+            const scrollingDown = window.scrollY > UIState.lastScrollY;
+            const shouldHide = scrollingDown && window.scrollY > 180;
+            toolbar.classList.toggle('toolbar-hidden', shouldHide);
+            UIState.lastScrollY = window.scrollY;
+        }
     };
 
     window.addEventListener('scroll', updateVisibility, { passive: true });
