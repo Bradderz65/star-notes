@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 import requests
+from urllib.parse import quote
 
 BASE_URL = "https://api.parse.bot"
 SCRAPER_ID = "d2e043f3-3057-4355-b349-498b473ddb8d"
@@ -101,6 +102,45 @@ def parse_release_date(notes_release_date: str, raw_notes: str):
             return dt.date.fromisoformat(m.group(1))
         except ValueError:
             return None
+    return None
+
+
+_WIKI_RELEASE_CACHE = {}
+
+
+def fetch_release_date_from_wiki(version: str):
+    key = str(version or "").strip()
+    if not key:
+        return None
+    if key in _WIKI_RELEASE_CACHE:
+        return _WIKI_RELEASE_CACHE[key]
+
+    try:
+        url = f"https://starcitizen.tools/Update:Star_Citizen_Alpha_{quote(key)}"
+        resp = requests.get(url, timeout=30)
+        if not resp.ok:
+            _WIKI_RELEASE_CACHE[key] = None
+            return None
+
+        html = resp.text
+        patterns = [
+            r"released on\s*(\d{4}-\d{2}-\d{2})",
+            r"Released</span>[^<]*(\d{4}-\d{2}-\d{2})",
+        ]
+        for pattern in patterns:
+            m = re.search(pattern, html, flags=re.I)
+            if not m:
+                continue
+            try:
+                parsed = dt.date.fromisoformat(m.group(1))
+                _WIKI_RELEASE_CACHE[key] = parsed
+                return parsed
+            except ValueError:
+                continue
+    except Exception:
+        pass
+
+    _WIKI_RELEASE_CACHE[key] = None
     return None
 
 
@@ -225,6 +265,12 @@ def build_dataset():
             continue
 
         release_date = parse_release_date(notes.get("release_date"), raw_notes)
+
+        # Parse API dates can drift or be normalized; prefer canonical release date from StarCitizen.tools when available.
+        wiki_release_date = fetch_release_date_from_wiki(item.get("version") or "")
+        if wiki_release_date:
+            release_date = wiki_release_date
+
         if release_date and release_date < cutoff:
             continue
 
@@ -257,6 +303,33 @@ def build_dataset():
     return dataset
 
 
+def normalize_existing_dataset_dates(dataset: dict) -> dict:
+    patches = dataset.get("patches") if isinstance(dataset, dict) else None
+    if not isinstance(patches, list):
+        return dataset
+
+    changed = 0
+    for patch in patches:
+        if not isinstance(patch, dict):
+            continue
+        version = str(patch.get("version") or "").strip()
+        if not version:
+            continue
+        wiki_date = fetch_release_date_from_wiki(version)
+        if not wiki_date:
+            continue
+        iso = wiki_date.isoformat()
+        display = format_month_year(wiki_date)
+        if patch.get("release_date_iso") != iso or patch.get("release_date_display") != display:
+            patch["release_date_iso"] = iso
+            patch["release_date_display"] = display
+            changed += 1
+
+    if changed:
+        print(f"Normalized release dates for {changed} patches from StarCitizen.tools")
+    return dataset
+
+
 def main():
     try:
         dataset = build_dataset()
@@ -266,6 +339,8 @@ def main():
             dataset = json.loads(OUT_FILE.read_text(encoding="utf-8"))
         else:
             raise
+
+    dataset = normalize_existing_dataset_dates(dataset)
 
     OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     OUT_FILE.write_text(json.dumps(dataset, indent=2), encoding="utf-8")
