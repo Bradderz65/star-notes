@@ -5,11 +5,12 @@
 
 const CACHE_NAME = 'star-notes-v1';
 const STATIC_ASSETS = [
-    '/',
-    '/index.html',
-    '/styles.css',
-    '/main.js',
-    '/data/patches.json'
+    './',
+    './index.html',
+    './styles.css',
+    './main.js',
+    './data/patches.json',
+    './data/patches.js'
 ];
 
 // Install: cache static assets

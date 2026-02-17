@@ -220,7 +220,7 @@ function setErrorState(message) {
 
 /**
  * Compare two semantic version strings (e.g., "4.0.2" vs "4.0.10")
- * Returns: negative if v1 < v2, positive if v1 > v2, 0 if equal
+ * Returns a comparator for descending order (newest first).
  */
 function compareSemver(v1, v2) {
     const parts1 = String(v1 || '0').split('.').map(Number);
@@ -374,8 +374,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Register service worker for offline support
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js')
+if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+    navigator.serviceWorker.register('./sw.js', { scope: './' })
         .then((reg) => console.log('[SW] Registered:', reg.scope))
         .catch((err) => console.warn('[SW] Registration failed:', err));
 }

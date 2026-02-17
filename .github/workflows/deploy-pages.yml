@@ -30,6 +30,7 @@ jobs:
           cp index.html public/index.html
           cp styles.css public/styles.css
           cp main.js public/main.js
+          cp sw.js public/sw.js
           cp data/patches.json public/data/patches.json
           cp data/patches.js public/data/patches.js
 
