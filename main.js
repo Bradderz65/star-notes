@@ -22,7 +22,6 @@ const UIState = {
     activeFilter: 'all',
     searchQuery: '',
     expandedCategories: new Set(),
-    lastScrollY: 0,
 };
 
 const PatchStore = {
@@ -85,6 +84,22 @@ function formatRelativeTime(isoValue) {
     if (hours < 24) return `${hours}h ago`;
     const days = Math.floor(hours / 24);
     return `${days}d ago`;
+}
+
+function formatPatchDate(raw) {
+    const iso = raw?.release_date_iso || raw?.releaseDateIso || null;
+    if (iso) {
+        const parsed = new Date(iso);
+        if (!Number.isNaN(parsed.getTime())) {
+            return parsed.toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+            });
+        }
+    }
+
+    return String(raw?.releaseDate || raw?.release_date_display || 'Unknown date');
 }
 
 function updateUI() {
@@ -409,11 +424,13 @@ function normalizePatch(raw, index) {
         ships: Number(raw.stats?.ships ?? inferredStats.ships) || 0,
     };
 
+    const normalizedDate = formatPatchDate(raw);
+
     return {
         patchId: String(raw.patch_id || raw.patchId || raw.version || `patch-${index}`),
         version: String(raw.version || 'Unknown'),
-        date: String(raw.release_date_display || raw.releaseDate || raw.release_date_iso || 'Unknown date'),
-        releaseDate: String(raw.release_date_display || raw.releaseDate || raw.release_date_iso || 'Unknown date'),
+        date: normalizedDate,
+        releaseDate: normalizedDate,
         releaseDateIso: raw.release_date_iso ? String(raw.release_date_iso) : null,
         buildChannel: String(raw.build_channel || 'LIVE'),
         status: String(raw.status || (index === 0 ? 'Current' : 'Archived')),
@@ -547,18 +564,10 @@ function initToolbarActions() {
 
 function initBackToTop() {
     const button = document.getElementById('back-to-top');
-    const toolbar = document.getElementById('patch-toolbar');
     if (!button) return;
 
     const updateVisibility = () => {
         button.classList.toggle('visible', window.scrollY > 500);
-
-        if (toolbar) {
-            const scrollingDown = window.scrollY > UIState.lastScrollY;
-            const shouldHide = scrollingDown && window.scrollY > 180;
-            toolbar.classList.toggle('toolbar-hidden', shouldHide);
-            UIState.lastScrollY = window.scrollY;
-        }
     };
 
     window.addEventListener('scroll', updateVisibility, { passive: true });

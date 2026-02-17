@@ -331,8 +331,7 @@ input:focus-visible,
 }
 
 .patch-toolbar {
-    position: sticky;
-    top: 73px;
+    position: static;
     z-index: 90;
     display: flex;
     flex-wrap: wrap;
@@ -343,12 +342,6 @@ input:focus-visible,
     border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
     backdrop-filter: blur(6px);
-    transition: transform var(--motion-base) ease, opacity var(--motion-base) ease;
-}
-
-.patch-toolbar.toolbar-hidden {
-    transform: translateY(-8px);
-    opacity: 0.55;
 }
 
 .patch-filters {
@@ -796,7 +789,6 @@ input:focus-visible,
     }
     
     .patch-toolbar {
-        top: 65px;
         padding: 8px;
     }
 
