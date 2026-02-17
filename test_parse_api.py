@@ -1,7 +1,8 @@
 import json
+import os
 import requests
 
-API_KEY = "bd40d1f1-15f1-4e6c-a028-a8cacb8ca3f9"
+API_KEY = os.getenv("PARSE_API_KEY")
 BASE_URL = "https://api.parse.bot"
 SCRAPER_ID = "d2e043f3-3057-4355-b349-498b473ddb8d"
 MONTHS = 6
@@ -13,6 +14,8 @@ def unwrap_data(payload):
 
 
 def call(endpoint, **params):
+    if not API_KEY:
+        raise RuntimeError("PARSE_API_KEY is not set")
     url = f"{BASE_URL}/scraper/{SCRAPER_ID}/{endpoint}"
     headers = {
         "X-API-Key": API_KEY,

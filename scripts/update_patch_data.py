@@ -13,13 +13,15 @@ DEFAULT_MONTHS_FETCH = 6
 WINDOW_MONTHS = 3
 MAX_PATCHES = 20
 
-API_KEY = os.getenv("PARSE_API_KEY", "bd40d1f1-15f1-4e6c-a028-a8cacb8ca3f9")
+API_KEY = os.getenv("PARSE_API_KEY")
 ROOT = Path(__file__).resolve().parents[1]
 OUT_FILE = ROOT / "data" / "patches.json"
 OUT_JS_FILE = ROOT / "data" / "patches.js"
 
 
 def call(endpoint: str, **params):
+    if not API_KEY:
+        raise RuntimeError("PARSE_API_KEY is not set")
     url = f"{BASE_URL}/scraper/{SCRAPER_ID}/{endpoint}"
     resp = requests.get(url, headers={"X-API-Key": API_KEY}, params=params, timeout=120)
     resp.raise_for_status()

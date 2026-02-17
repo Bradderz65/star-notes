@@ -24,10 +24,19 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Prepare public artifact
+        run: |
+          mkdir -p public/data
+          cp index.html public/index.html
+          cp styles.css public/styles.css
+          cp main.js public/main.js
+          cp data/patches.json public/data/patches.json
+          cp data/patches.js public/data/patches.js
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: public
 
   deploy:
     environment:
