@@ -75,6 +75,16 @@
             <div class="patch-header">
                 <h2>Release Notes</h2>
                 <p class="patch-subtitle">Version <span id="patch-version">--</span></p>
+                <p class="patch-updated" id="patch-updated">Last updated: --</p>
+            </div>
+
+            <div class="patch-toolbar" id="patch-toolbar">
+                <div class="patch-filters" id="patch-filters" role="tablist" aria-label="Patch note filters"></div>
+                <div class="patch-actions">
+                    <input type="search" id="patch-search" class="patch-search" placeholder="Search this patch…" aria-label="Search current patch notes">
+                    <button type="button" class="patch-action-btn" id="expand-all-btn">Expand all</button>
+                    <button type="button" class="patch-action-btn" id="collapse-all-btn">Collapse all</button>
+                </div>
             </div>
 
             <div class="patch-categories" id="patch-categories">
@@ -93,6 +103,8 @@
             </div>
         </section>
     </main>
+
+    <button type="button" class="back-to-top" id="back-to-top" aria-label="Back to top">↑ Top</button>
 
     <footer class="footer">
         <p>Unofficial fan project. Not affiliated with Cloud Imperium Games.</p>

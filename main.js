@@ -15,6 +15,13 @@ const PatchData = {
     categories: [],
     history: [],
     selectedPatchId: null,
+    generatedAt: null,
+};
+
+const UIState = {
+    activeFilter: 'all',
+    searchQuery: '',
+    expandedCategories: new Set(),
 };
 
 const PatchStore = {
@@ -53,17 +60,31 @@ function initThemeToggle() {
     });
 }
 
+function formatGeneratedAt(isoValue) {
+    if (!isoValue) return '--';
+    const parsed = new Date(isoValue);
+    if (Number.isNaN(parsed.getTime())) return '--';
+    return parsed.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+}
+
 function updateUI() {
     const versionEl = document.getElementById('current-version');
     const patchVersionEl = document.getElementById('patch-version');
     const releaseDateEl = document.getElementById('release-date');
     const buildChannelEl = document.getElementById('build-channel');
     const statusEl = document.getElementById('release-status');
+    const updatedEl = document.getElementById('patch-updated');
 
     if (versionEl) versionEl.textContent = PatchData.version || '--';
     if (patchVersionEl) patchVersionEl.textContent = PatchData.version || '--';
     if (releaseDateEl) releaseDateEl.textContent = PatchData.releaseDate || '--';
     if (buildChannelEl) buildChannelEl.textContent = PatchData.buildChannel || '--';
+    if (updatedEl) updatedEl.textContent = `Last updated: ${formatGeneratedAt(PatchData.generatedAt)}`;
 
     if (statusEl) {
         statusEl.textContent = PatchData.status || '--';
@@ -98,34 +119,86 @@ function createPatchItem(text) {
     return row;
 }
 
-function createCategoryCard(category) {
+function shouldIncludeCategory(category) {
+    if (UIState.activeFilter === 'all') return true;
+    const normalizedName = String(category.name || '').toLowerCase();
+    return normalizedName.includes(UIState.activeFilter);
+}
+
+function filterCategoryItems(category) {
+    if (!UIState.searchQuery) return category.items;
+    const query = UIState.searchQuery.toLowerCase();
+    return category.items.filter((item) => item.toLowerCase().includes(query));
+}
+
+function toggleCategory(categoryId, forceExpanded = null) {
+    const shouldExpand = forceExpanded === null
+        ? !UIState.expandedCategories.has(categoryId)
+        : Boolean(forceExpanded);
+
+    if (shouldExpand) UIState.expandedCategories.add(categoryId);
+    else UIState.expandedCategories.delete(categoryId);
+}
+
+function createCategoryCard(category, index, visibleItems) {
+    const categoryId = `${PatchData.selectedPatchId || 'patch'}-cat-${index}`;
+    const contentId = `${categoryId}-content`;
+
     const card = document.createElement('div');
     card.className = 'category-card';
 
-    const header = document.createElement('div');
+    const header = document.createElement('button');
     header.className = 'category-header';
+    header.type = 'button';
+    header.setAttribute('aria-controls', contentId);
+    header.setAttribute('aria-expanded', UIState.expandedCategories.has(categoryId) ? 'true' : 'false');
 
     const title = document.createElement('span');
     title.className = 'category-title';
     title.textContent = category.name;
 
+    const right = document.createElement('span');
+    right.className = 'category-header-right';
+
     const count = document.createElement('span');
     count.className = 'category-count';
-    count.textContent = String(category.items.length);
+    count.textContent = String(visibleItems.length);
+
+    const chevron = document.createElement('span');
+    chevron.className = 'category-chevron';
+    chevron.textContent = '▾';
+
+    right.appendChild(count);
+    right.appendChild(chevron);
 
     header.appendChild(title);
-    header.appendChild(count);
+    header.appendChild(right);
 
     const content = document.createElement('div');
     content.className = 'category-content';
+    content.id = contentId;
 
-    category.items.forEach((item) => {
-        content.appendChild(createPatchItem(item));
+    const inner = document.createElement('div');
+    inner.className = 'category-content-inner';
+
+    visibleItems.forEach((item) => {
+        inner.appendChild(createPatchItem(item));
     });
+
+    content.appendChild(inner);
+
+    const syncExpanded = () => {
+        const expanded = UIState.expandedCategories.has(categoryId);
+        header.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        content.classList.toggle('active', expanded);
+    };
 
     header.addEventListener('click', () => {
-        content.classList.toggle('active');
+        toggleCategory(categoryId);
+        syncExpanded();
     });
+
+    syncExpanded();
 
     card.appendChild(header);
     card.appendChild(content);
@@ -136,20 +209,32 @@ function renderCategories() {
     const container = document.getElementById('patch-categories');
     container.innerHTML = '';
 
-    if (!PatchData.categories.length) {
+    const filteredCategories = PatchData.categories
+        .filter((category) => shouldIncludeCategory(category))
+        .map((category) => ({ ...category, items: filterCategoryItems(category) }))
+        .filter((category) => category.items.length);
+
+    if (!filteredCategories.length) {
         container.innerHTML = `
             <div class="empty-state">
                 <div class="empty-icon"></div>
-                <h3>No Patch Notes Available</h3>
-                <p>Content will appear here once patch notes are published.</p>
+                <h3>No Matching Patch Notes</h3>
+                <p>Try a different filter or search term.</p>
             </div>
         `;
         return;
     }
 
-    PatchData.categories.forEach((category) => {
-        container.appendChild(createCategoryCard(category));
+    filteredCategories.forEach((category, index) => {
+        container.appendChild(createCategoryCard(category, index, category.items));
     });
+}
+
+function getPatchType(version) {
+    const match = String(version || '').match(/^(\d+)\.(\d+)\.(\d+)/);
+    if (!match) return 'Update';
+    const patch = Number(match[3]);
+    return patch === 0 ? 'Major' : 'Minor';
 }
 
 function renderHistory() {
@@ -175,12 +260,21 @@ function renderHistory() {
         date.className = 'history-date';
         date.textContent = entry.date || 'Unknown date';
 
+        const meta = document.createElement('div');
+        meta.className = 'history-meta';
+        const total = Number(entry.totalChanges || 0);
+        meta.textContent = `${getPatchType(entry.version)} • ${total} changes`;
+
         const status = document.createElement('div');
         status.className = 'history-status';
         status.textContent = entry.status || (index === 0 ? 'Current' : 'Archived');
 
+        const middle = document.createElement('div');
+        middle.appendChild(date);
+        middle.appendChild(meta);
+
         item.appendChild(version);
-        item.appendChild(date);
+        item.appendChild(middle);
         item.appendChild(status);
 
         const onSelect = () => selectPatchById(patchId);
@@ -214,8 +308,12 @@ function setErrorState(message) {
             <div class="empty-icon"></div>
             <h3>Unable to Load Patch Data</h3>
             <p>${message}</p>
+            <button type="button" class="empty-action" id="retry-load-btn">Retry</button>
         </div>
     `;
+
+    const retry = document.getElementById('retry-load-btn');
+    if (retry) retry.addEventListener('click', () => loadPatchDataset());
 }
 
 /**
@@ -230,7 +328,7 @@ function compareSemver(v1, v2) {
     for (let i = 0; i < maxLen; i++) {
         const a = parts1[i] || 0;
         const b = parts2[i] || 0;
-        if (a !== b) return b - a; // Descending order (newest first)
+        if (a !== b) return b - a;
     }
     return 0;
 }
@@ -287,6 +385,15 @@ function applyPatch(patch) {
     PatchData.status = patch.status;
     PatchData.categories = patch.categories;
     PatchData.stats = patch.stats;
+
+    UIState.searchQuery = '';
+    const searchEl = document.getElementById('patch-search');
+    if (searchEl) searchEl.value = '';
+
+    UIState.expandedCategories = new Set();
+    if (patch.categories.length > 0) {
+        UIState.expandedCategories.add(`${PatchData.selectedPatchId || 'patch'}-cat-0`);
+    }
 }
 
 function selectPatchById(patchId) {
@@ -304,6 +411,10 @@ function buildHistoryFromPatches(patches) {
         version: patch.version,
         date: patch.date,
         status: index === 0 ? 'Current' : 'Archived',
+        totalChanges: Number(patch.stats?.features || 0)
+            + Number(patch.stats?.improvements || 0)
+            + Number(patch.stats?.fixes || 0)
+            + Number(patch.stats?.ships || 0),
     }));
 }
 
@@ -316,6 +427,83 @@ function pruneOlderThanMonths(patches, months) {
         const parsed = new Date(patch.releaseDateIso);
         if (Number.isNaN(parsed.getTime())) return true;
         return parsed >= cutoff;
+    });
+}
+
+function renderFilterChips() {
+    const container = document.getElementById('patch-filters');
+    if (!container) return;
+
+    const chipDefs = [
+        { key: 'all', label: 'All' },
+        { key: 'feature', label: 'Features' },
+        { key: 'improvement', label: 'Improvements' },
+        { key: 'fix', label: 'Bug Fixes' },
+        { key: 'ship', label: 'Ships' },
+        { key: 'known', label: 'Known Issues' },
+    ];
+
+    container.innerHTML = '';
+    chipDefs.forEach((chip) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `filter-chip ${UIState.activeFilter === chip.key ? 'active' : ''}`.trim();
+        btn.textContent = chip.label;
+        btn.setAttribute('role', 'tab');
+        btn.setAttribute('aria-selected', UIState.activeFilter === chip.key ? 'true' : 'false');
+
+        btn.addEventListener('click', () => {
+            UIState.activeFilter = chip.key;
+            renderFilterChips();
+            renderCategories();
+        });
+
+        container.appendChild(btn);
+    });
+}
+
+function initToolbarActions() {
+    const search = document.getElementById('patch-search');
+    const expandAll = document.getElementById('expand-all-btn');
+    const collapseAll = document.getElementById('collapse-all-btn');
+
+    if (search) {
+        search.addEventListener('input', () => {
+            UIState.searchQuery = search.value.trim();
+            renderCategories();
+        });
+    }
+
+    if (expandAll) {
+        expandAll.addEventListener('click', () => {
+            UIState.expandedCategories = new Set(
+                PatchData.categories.map((_, index) => `${PatchData.selectedPatchId || 'patch'}-cat-${index}`),
+            );
+            renderCategories();
+        });
+    }
+
+    if (collapseAll) {
+        collapseAll.addEventListener('click', () => {
+            UIState.expandedCategories = new Set();
+            renderCategories();
+        });
+    }
+}
+
+function initBackToTop() {
+    const button = document.getElementById('back-to-top');
+    if (!button) return;
+
+    const updateVisibility = () => {
+        button.classList.toggle('visible', window.scrollY > 500);
+    };
+
+    window.addEventListener('scroll', updateVisibility, { passive: true });
+    updateVisibility();
+
+    button.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 }
 
@@ -340,14 +528,13 @@ async function loadPatchDataset() {
         }
 
         const normalized = rawPatches.map((patch, idx) => normalizePatch(patch, idx));
-        
-        // Sort by semantic version (newest first)
         normalized.sort((a, b) => compareSemver(a.version, b.version));
-        
+
         const recentOnly = pruneOlderThanMonths(normalized, 3);
 
         PatchStore.patches = recentOnly;
         PatchStore.byId = Object.fromEntries(recentOnly.map((patch) => [patch.patchId, patch]));
+        PatchData.generatedAt = payload?.generated_at || null;
 
         if (!PatchStore.patches.length) {
             throw new Error('No patches in last 3 months in local dataset.');
@@ -357,6 +544,7 @@ async function loadPatchDataset() {
         applyPatch(PatchStore.patches[0]);
 
         updateUI();
+        renderFilterChips();
         renderCategories();
         renderHistory();
     } catch (error) {
@@ -367,7 +555,10 @@ async function loadPatchDataset() {
 
 document.addEventListener('DOMContentLoaded', () => {
     initThemeToggle();
+    initToolbarActions();
+    initBackToTop();
     updateUI();
+    renderFilterChips();
     renderCategories();
     renderHistory();
     loadPatchDataset();
