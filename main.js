@@ -32,15 +32,13 @@ const PatchStore = {
 function applyTheme(theme) {
     const isLight = theme === 'light';
     const toggle = document.getElementById('theme-toggle');
-    const label = document.getElementById('theme-toggle-text');
 
     document.body.classList.toggle('light-mode', isLight);
 
-    if (!toggle || !label) return;
+    if (!toggle) return;
 
     toggle.setAttribute('aria-pressed', isLight ? 'true' : 'false');
     toggle.setAttribute('aria-label', isLight ? 'Switch to dark mode' : 'Switch to light mode');
-    label.textContent = isLight ? 'Light' : 'Dark';
 }
 
 function initThemeToggle() {
