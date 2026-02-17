@@ -12,6 +12,43 @@ const PatchData = {
     categories: []
 };
 
+const THEME_STORAGE_KEY = 'star-notes-theme';
+
+function applyTheme(theme) {
+    const isLight = theme === 'light';
+    const toggle = document.getElementById('theme-toggle');
+    const label = document.getElementById('theme-toggle-text');
+
+    document.body.classList.toggle('light-mode', isLight);
+
+    if (!toggle || !label) {
+        return;
+    }
+
+    toggle.setAttribute('aria-pressed', isLight ? 'true' : 'false');
+    toggle.setAttribute('aria-label', isLight ? 'Switch to dark mode' : 'Switch to light mode');
+    label.textContent = isLight ? 'Light' : 'Dark';
+}
+
+function initThemeToggle() {
+    const toggle = document.getElementById('theme-toggle');
+    if (!toggle) {
+        return;
+    }
+
+    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+    const initialTheme = storedTheme || (prefersLight ? 'light' : 'dark');
+    applyTheme(initialTheme);
+
+    toggle.addEventListener('click', () => {
+        const isLight = document.body.classList.contains('light-mode');
+        const nextTheme = isLight ? 'dark' : 'light';
+        applyTheme(nextTheme);
+        localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    });
+}
+
 function updateUI() {
     document.getElementById('current-version').textContent = PatchData.version;
     document.getElementById('patch-version').textContent = PatchData.version;
@@ -76,4 +113,7 @@ function setVersion(version, date) {
     updateUI();
 }
 
-document.addEventListener('DOMContentLoaded', updateUI);
+document.addEventListener('DOMContentLoaded', () => {
+    initThemeToggle();
+    updateUI();
+});
