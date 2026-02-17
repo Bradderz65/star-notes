@@ -2,10 +2,10 @@ const THEME_STORAGE_KEY = 'star-notes-theme';
 const PATCH_DATA_URL = 'data/patches.json';
 
 const PatchData = {
-    version: '4.0.2',
-    releaseDate: 'February 2026',
-    buildChannel: 'LIVE',
-    status: 'Deployed',
+    version: null,
+    releaseDate: null,
+    buildChannel: null,
+    status: null,
     stats: {
         features: 0,
         improvements: 0,
@@ -54,19 +54,32 @@ function initThemeToggle() {
 }
 
 function updateUI() {
-    document.getElementById('current-version').textContent = PatchData.version;
-    document.getElementById('patch-version').textContent = PatchData.version;
-    document.getElementById('release-date').textContent = PatchData.releaseDate;
-    document.getElementById('build-channel').textContent = PatchData.buildChannel;
-
+    const versionEl = document.getElementById('current-version');
+    const patchVersionEl = document.getElementById('patch-version');
+    const releaseDateEl = document.getElementById('release-date');
+    const buildChannelEl = document.getElementById('build-channel');
     const statusEl = document.getElementById('release-status');
-    statusEl.textContent = PatchData.status;
-    statusEl.classList.toggle('status-live', /deployed|live|released|current/i.test(PatchData.status));
 
-    document.getElementById('stat-features').textContent = PatchData.stats.features || '--';
-    document.getElementById('stat-improvements').textContent = PatchData.stats.improvements || '--';
-    document.getElementById('stat-fixes').textContent = PatchData.stats.fixes || '--';
-    document.getElementById('stat-ships').textContent = PatchData.stats.ships || '--';
+    if (versionEl) versionEl.textContent = PatchData.version || '--';
+    if (patchVersionEl) patchVersionEl.textContent = PatchData.version || '--';
+    if (releaseDateEl) releaseDateEl.textContent = PatchData.releaseDate || '--';
+    if (buildChannelEl) buildChannelEl.textContent = PatchData.buildChannel || '--';
+
+    if (statusEl) {
+        statusEl.textContent = PatchData.status || '--';
+        const isLive = /deployed|live|released|current/i.test(PatchData.status || '');
+        statusEl.classList.toggle('status-live', isLive);
+    }
+
+    const featuresEl = document.getElementById('stat-features');
+    const improvementsEl = document.getElementById('stat-improvements');
+    const fixesEl = document.getElementById('stat-fixes');
+    const shipsEl = document.getElementById('stat-ships');
+
+    if (featuresEl) featuresEl.textContent = PatchData.stats.features || '--';
+    if (improvementsEl) improvementsEl.textContent = PatchData.stats.improvements || '--';
+    if (fixesEl) fixesEl.textContent = PatchData.stats.fixes || '--';
+    if (shipsEl) shipsEl.textContent = PatchData.stats.ships || '--';
 }
 
 function createPatchItem(text) {
@@ -205,6 +218,23 @@ function setErrorState(message) {
     `;
 }
 
+/**
+ * Compare two semantic version strings (e.g., "4.0.2" vs "4.0.10")
+ * Returns: negative if v1 < v2, positive if v1 > v2, 0 if equal
+ */
+function compareSemver(v1, v2) {
+    const parts1 = String(v1 || '0').split('.').map(Number);
+    const parts2 = String(v2 || '0').split('.').map(Number);
+    const maxLen = Math.max(parts1.length, parts2.length);
+
+    for (let i = 0; i < maxLen; i++) {
+        const a = parts1[i] || 0;
+        const b = parts2[i] || 0;
+        if (a !== b) return b - a; // Descending order (newest first)
+    }
+    return 0;
+}
+
 function inferStatsFromCategories(categories) {
     const stats = { features: 0, improvements: 0, fixes: 0, ships: 0 };
     categories.forEach((category) => {
@@ -310,6 +340,10 @@ async function loadPatchDataset() {
         }
 
         const normalized = rawPatches.map((patch, idx) => normalizePatch(patch, idx));
+        
+        // Sort by semantic version (newest first)
+        normalized.sort((a, b) => compareSemver(a.version, b.version));
+        
         const recentOnly = pruneOlderThanMonths(normalized, 3);
 
         PatchStore.patches = recentOnly;
@@ -338,3 +372,10 @@ document.addEventListener('DOMContentLoaded', () => {
     renderHistory();
     loadPatchDataset();
 });
+
+// Register service worker for offline support
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+        .then((reg) => console.log('[SW] Registered:', reg.scope))
+        .catch((err) => console.warn('[SW] Registration failed:', err));
+}
