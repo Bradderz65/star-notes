@@ -41,11 +41,11 @@
                 </div>
                 <div class="meta-group">
                     <span class="meta-label">Build Channel</span>
-                    <span class="meta-value">LIVE</span>
+                    <span class="meta-value" id="build-channel">LIVE</span>
                 </div>
                 <div class="meta-group">
                     <span class="meta-label">Status</span>
-                    <span class="meta-value status-live">Deployed</span>
+                    <span class="meta-value status-live" id="release-status">Deployed</span>
                 </div>
             </div>
         </section>
@@ -88,7 +88,7 @@
 
         <section class="history-section">
             <h2>Version History</h2>
-            <div class="history-list">
+            <div class="history-list" id="history-list">
                 <div class="history-item current">
                     <div class="history-version">4.0.2</div>
                     <div class="history-date">February 2026</div>
@@ -112,6 +112,7 @@
         <p>Unofficial fan project. Not affiliated with Cloud Imperium Games.</p>
     </footer>
 
+    <script src="data/patches.js"></script>
     <script src="main.js"></script>
 </body>
 </html>

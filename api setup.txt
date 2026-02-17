@@ -1,0 +1,102 @@
+This example shows how to use your Parse API endpoints from Python.
+Available Endpoints
+get_latest_patch_dates()get_patch_notes()parse_and_format_patch_notes()
+Usage Example103 lines
+
+"""
+Star Citizen Patch Notes Extraction - Usage Example
+This shows how to use your Parse API endpoints.
+Get your API key from: https://parse.bot/settings
+"""
+import requests
+import os
+class ParseClient:
+    """Client for interacting with Parse API endpoints."""
+
+    def __init__(self, api_key=None):
+        self.api_key = api_key or os.getenv("PARSE_API_KEY")
+        self.base_url = "https://api.parse.bot"
+        self.scraper_id = "d2e043f3-3057-4355-b349-498b473ddb8d"
+
+        # Session state (automatically managed across calls)
+        self.session_id = None
+        self.encryption_key = None
+
+    def _call(self, endpoint, **params):
+        """Make API call with automatic session handling."""
+        url = f"{self.base_url}/scraper/{self.scraper_id}/{endpoint}"
+
+        headers = {
+            "X-API-Key": self.api_key,
+            "Content-Type": "application/json"
+        }
+
+        # Include session credentials if available
+        payload = dict(params)
+        if self.session_id:
+            payload["session_id"] = self.session_id
+        if self.encryption_key:
+            payload["encryption_key"] = self.encryption_key
+
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        data = response.json()
+
+        # Capture session credentials from response (universal session model)
+        if "session_id" in data:
+            self.session_id = data["session_id"]
+        if "encryption_key" in data:
+            self.encryption_key = data["encryption_key"]
+
+        return data
+
+    def get_latest_patch_dates(self, months=None):
+        """
+        Fetches a list of patch identifiers and their release dates for patches released within the last 3 months (default). Optionally specify a different number of months to look back.
+
+        Args:
+            months: Number of months to look back for patches, default is 3.
+
+        Returns:
+            dict with: patches, count
+        """
+        return self._call("get_latest_patch_dates", months=months)
+
+    def get_patch_notes(self, patch_id):
+        """
+        Retrieves the raw patch notes content (HTML or text) for a specified patch identifier or version string.
+
+        Args:
+            patch_id: Unique identifier or version string of the patch.
+
+        Returns:
+            dict with: patch_id, title, url, release_date, raw_notes
+        """
+        return self._call("get_patch_notes", patch_id=patch_id)
+
+    def parse_and_format_patch_notes(self, raw_notes):
+        """
+        Parses and cleans the raw patch notes text to return structured and formatted patch note information without irrelevant data, given raw notes from get_patch_notes.
+
+        Args:
+            raw_notes: Raw patch notes content from get_patch_notes.
+
+        Returns:
+            dict with: sections, features, bug_fixes, known_issues
+        """
+        return self._call("parse_and_format_patch_notes", raw_notes=raw_notes)
+
+# ============================================
+# Example Usage
+# ============================================
+if __name__ == "__main__":
+    # Initialize client
+    client = ParseClient()
+
+    # Step 1: Call API endpoints
+    result = client.get_latest_patch_dates(months="<Number of months to look back >")
+    print("get_latest_patch_dates:", result)
+    result = client.get_patch_notes(patch_id="<Unique identifier or version s>")
+    print("get_patch_notes:", result)
+    result = client.parse_and_format_patch_notes(raw_notes="<Raw patch notes content from g>")
+    print("parse_and_format_patch_notes:", result)

@@ -461,14 +461,24 @@ body {
     padding: 14px 16px;
     background: var(--bg-secondary);
     transition: background 0.15s ease;
+    cursor: pointer;
 }
 
 .history-item:hover {
     background: var(--bg-tertiary);
 }
 
+.history-item:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
 .history-item.current {
     background: var(--accent-subtle);
+}
+
+.history-item.selected {
+    box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .history-version {

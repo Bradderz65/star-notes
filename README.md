@@ -16,12 +16,15 @@ A lightweight, single-page website for displaying **Star Citizen** patch notes w
 - HTML5
 - CSS3
 - Vanilla JavaScript
+- Python (for patch data generation script)
 
 ## Project Structure
 
 - `index.html` - App structure and content sections
 - `styles.css` - Theme, layout, and responsive styling
-- `main.js` - Patch data model and UI rendering logic
+- `main.js` - UI rendering logic (reads local dataset)
+- `data/patches.json` - Static patch dataset served to users
+- `scripts/update_patch_data.py` - Pulls, cleans, and prunes API data (last 3 months)
 
 ## Run Locally
 
@@ -35,22 +38,20 @@ Then visit `http://localhost:8000`.
 
 ## Updating Patch Notes
 
-Edit `main.js`:
+Generate a fresh local dataset:
 
-- Update version/date with `setVersion(version, date)`
-- Update counters with `setStats({ ... })`
-- Add sections with `addCategory(name, items)`
-
-Example:
-
-```js
-setVersion("4.1.0", "March 2026");
-setStats({ features: 5, improvements: 12, fixes: 41, ships: 3 });
-addCategory("Gameplay", [
-  "Improved mission tracking in mobiGlas",
-  "Adjusted EVA movement responsiveness"
-]);
+```bash
+python3 scripts/update_patch_data.py
 ```
+
+This writes `data/patches.json`, and the website loads that local file only.
+
+## Automated Schedule
+
+A GitHub Actions workflow updates `data/patches.json` every 3 days:
+
+- Workflow file: `.github/workflows/update-patch-data.yml`
+- Required repository secret: `PARSE_API_KEY`
 
 ## Disclaimer
 
