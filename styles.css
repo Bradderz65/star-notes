@@ -144,21 +144,16 @@ input:focus-visible,
     background: var(--bg-tertiary);
     color: var(--text-secondary);
     border-radius: 999px;
-    padding: 5px 10px 5px 6px;
+    padding: 4px;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
     cursor: pointer;
-    transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+    transition: border-color 0.18s ease, background 0.18s ease;
 }
 
 .theme-toggle:hover {
     background: var(--bg-elevated);
     border-color: var(--accent);
-    color: var(--text-primary);
 }
 
 .theme-toggle:focus-visible {
@@ -167,32 +162,57 @@ input:focus-visible,
 }
 
 .theme-toggle-track {
-    width: 34px;
-    height: 18px;
+    width: 56px;
+    height: 28px;
     border-radius: 999px;
-    background: var(--accent-subtle);
+    background: var(--bg-primary);
     border: 1px solid var(--border);
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 6px;
+}
+
+.theme-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    z-index: 1;
+    pointer-events: none;
+    transition: color 0.18s ease;
+}
+
+.theme-icon.moon {
+    color: var(--accent);
+}
+
+.theme-icon.sun {
+    color: var(--text-muted);
+}
+
+.theme-toggle[aria-pressed="true"] .theme-icon.moon {
+    color: var(--text-muted);
+}
+
+.theme-toggle[aria-pressed="true"] .theme-icon.sun {
+    color: var(--accent);
 }
 
 .theme-toggle-thumb {
-    width: 12px;
-    height: 12px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     background: var(--accent);
     position: absolute;
     top: 2px;
     left: 2px;
-    transition: transform 0.18s ease, background 0.18s ease;
+    transition: transform 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 
 .theme-toggle[aria-pressed="true"] .theme-toggle-thumb {
-    transform: translateX(16px);
-}
-
-.theme-toggle-text {
-    min-width: 36px;
-    text-align: left;
+    transform: translateX(28px);
 }
 
 .version-info {
@@ -795,15 +815,31 @@ input:focus-visible,
     .theme-toggle {
         border: none;
         background: transparent;
-        padding: 4px;
+        padding: 2px;
     }
 
     .theme-toggle:hover {
         background: var(--bg-tertiary);
     }
 
-    .theme-toggle-text {
-        display: none;
+    .theme-toggle-track {
+        width: 52px;
+        height: 26px;
+        padding: 0 5px;
+    }
+
+    .theme-icon {
+        width: 12px;
+        height: 12px;
+    }
+
+    .theme-toggle-thumb {
+        width: 20px;
+        height: 20px;
+    }
+
+    .theme-toggle[aria-pressed="true"] .theme-toggle-thumb {
+        transform: translateX(26px);
     }
 
     .version-info {
