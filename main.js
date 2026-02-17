@@ -333,7 +333,7 @@ function renderHistory() {
         item.appendChild(middle);
         item.appendChild(status);
 
-        const onSelect = () => selectPatchById(patchId);
+        const onSelect = () => selectPatchById(patchId, { scrollToNotes: true });
         item.addEventListener('click', onSelect);
         item.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' || event.key === ' ') {
@@ -458,13 +458,28 @@ function applyPatch(patch) {
     }
 }
 
-function selectPatchById(patchId) {
+function scrollToPatchNotesSection() {
+    const target = document.getElementById('patch-toolbar') || document.getElementById('patch-categories');
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function selectPatchById(patchId, options = {}) {
+    const { scrollToNotes = false } = options;
+
     const selected = PatchStore.byId[patchId];
     if (!selected) return;
+
     applyPatch(selected);
     updateUI();
     renderCategories();
     renderHistory();
+
+    if (scrollToNotes) {
+        requestAnimationFrame(() => {
+            scrollToPatchNotesSection();
+        });
+    }
 }
 
 function buildHistoryFromPatches(patches) {
