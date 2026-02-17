@@ -30,12 +30,12 @@ jobs:
 
       - name: Commit and push if changed
         run: |
-          if git diff --quiet -- data/patches.json; then
+          if git diff --quiet -- data/patches.json data/patches.js; then
             echo "No patch data changes"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/patches.json
+          git add data/patches.json data/patches.js
           git commit -m "Update patch dataset"
           git push
